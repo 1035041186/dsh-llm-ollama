@@ -5,11 +5,11 @@
 // /tmp/ollama-mock-last.json so the num_ctx / num_predict / keep_alive / images
 // wiring can be asserted.
 //
-// Usage: node scripts/mock-ollama.mjs   (listens on 127.0.0.1:11434)
+// Usage: node scripts/mock-ollama.mjs   (listens on 127.0.0.1:11434; set PORT to override)
 import { createServer } from 'node:http'
 import { writeFileSync } from 'node:fs'
 
-const PORT = 11434
+const PORT = Number(process.env.PORT ?? 11434)
 const MODELS = [
   { name: 'llama3.2:3b', modified_at: '2024-01-01T00:00:00Z', size: 2019393181 },
   { name: 'qwen2.5:7b', modified_at: '2024-01-01T00:00:00Z', size: 4683593488 }
@@ -38,6 +38,23 @@ const server = createServer((req, res) => {
       try {
         writeFileSync('/tmp/ollama-mock-last.json', JSON.stringify(body, null, 2))
       } catch {}
+      // Faithful to real ollama: /api/chat rejects tool_calls history whose
+      // function.arguments is a JSON *string* (it must be an object) with this
+      // exact 400 body. Sending it WITHOUT a trailing newline also mirrors the
+      // real wire behaviour, so the client must surface the error even when
+      // the line is not newline-terminated.
+      for (const message of Array.isArray(body.messages) ? body.messages : []) {
+        if (message !== null && typeof message === 'object' && Array.isArray(message.tool_calls)) {
+          for (const call of message.tool_calls) {
+            const fn = call !== null && typeof call === 'object' ? call.function : undefined
+            if (fn !== null && typeof fn === 'object' && typeof fn.arguments === 'string') {
+              res.writeHead(400, { 'content-type': 'application/json' })
+              res.end('{"error":"Value looks like object, but can\'t find closing \'}\' symbol"}')
+              return
+            }
+          }
+        }
+      }
       res.writeHead(200, { 'content-type': 'application/x-ndjson' })
       const send = (obj) => res.write(`${JSON.stringify(obj)}\n`)
       if (Array.isArray(body.tools) && body.tools.length > 0) {

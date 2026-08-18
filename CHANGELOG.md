@@ -4,6 +4,25 @@
 
 ---
 
+## [v0.1.8] - 2026-08-18 22:30:00
+
+**更新作者**: ZhangYi
+**更新类型**: Bug 修复
+
+### 更新内容
+- 修复工具调用历史回传导致 Ollama 拒绝请求的问题（`ollama: stream ended without a done frame` / `STREAM_CLOSED`）：
+  - 根因：Ollama 原生 `/api/chat` 要求历史消息 `tool_calls[].function.arguments` 必须是 JSON **对象**，而插件把上一次响应解析出的参数字符串原样透传，Ollama 返回 HTTP 400 `Value looks like object, but can't find closing '}' symbol`，流在 `done` 帧前被掐断——每次对话的第二个请求必然失败，与模型大小/显存无关
+  - `buildMessages` 发送前将字符串形式的 `arguments` `JSON.parse` 为对象
+- 修复错误被吞成泛化提示的问题：Ollama 的错误响应体（如 400）不带结尾换行符，按行解析的流式读取会把它留在缓冲区直到 EOF 才丢弃；现在 EOF 时刷新缓冲区残留行并解析其中的 `error` 字段，让真实错误以 `INVALID_REQUEST` 浮出，而非误导性的 `STREAM_CLOSED`
+- `scripts/mock-ollama.mjs` 忠实模拟真实 Ollama 的该行为：请求历史中 `arguments` 为字符串时返回完全一致的 400 错误体（同样无结尾换行），并支持 `PORT` 环境变量覆盖监听端口，便于在真实 Ollama 占用 11434 时离线回归
+
+### 影响文件
+- `lib/index.js` — `buildMessages` 的 assistant tool_calls 映射改为解析 `arguments` 为对象；`stream()` 流解析在 EOF 时刷新缓冲区残留行
+- `scripts/mock-ollama.mjs` — 新增字符串 `arguments` 的 400 校验与 `PORT` 环境变量
+- `package.json` — 版本递增至 0.1.8
+
+---
+
 ## [v0.1.7] - 2026-08-18 18:59:09
 
 **更新作者**: ZhangYi
