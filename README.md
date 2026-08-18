@@ -5,7 +5,7 @@ DeepSeek Harness（dsh）的 Ollama 提供方插件：通过 Ollama 原生 `/api
 ## 功能特性
 
 - **整页设置界面**：设置 → **Ollama** 管理提供方（通过 `settings.section` 扩展点实现）。
-- **原生协议对话**：走 Ollama 原生 `POST /api/chat`（NDJSON 流式），支持工具调用（tool calls）。
+- **原生协议对话**：走 Ollama 原生 `POST /api/chat`（NDJSON 流式），支持工具调用（tool calls）与图片附件（多模态模型）。
 - **模型发现**：真实请求 `GET /api/tags` 拉取服务器上的模型，弹窗勾选加入模型目录；也可手动添加。
 - **参数直通 Ollama**：
   - 模型级：**上下文窗口** → `options.num_ctx`，**最大输出 token** → `options.num_predict`（填多少传多少；未填上下文窗口时默认发送 32K / 32768）。
@@ -94,14 +94,22 @@ llm-ollama:
 
 ## 开发调试
 
-无真实 Ollama 时可用内置 mock 服务器联调：它实现了 `/api/tags` 与流式 `/api/chat`（含工具调用示例），并把最近一次 `/api/chat` 请求体写入 `/tmp/ollama-mock-last.json`，便于断言 `num_ctx` / `num_predict` / `keep_alive` 的透传是否正确。
+无真实 Ollama 时可用内置 mock 服务器联调：它实现了 `/api/tags` 与流式 `/api/chat`（含工具调用示例与 `images=N` 图片回显），并把最近一次 `/api/chat` 请求体写入 `/tmp/ollama-mock-last.json`，便于断言 `num_ctx` / `num_predict` / `keep_alive` 的透传是否正确。
 
 ```bash
 node scripts/mock-ollama.mjs   # 监听 127.0.0.1:11434
 ```
 
+**让已安装的插件实时跟随源码**：`dsh plugin add` 通过 pnpm 的 `file:` / git 协议会把插件**拷贝**进 profile 的 `node_modules`——之后修改本仓库源码不会反映到已安装插件（`file:` 是安装时快照，不是链接）。本地联调时把 profile 的依赖声明改为 `link:` 指向本目录，安装后 `node_modules` 里就是软链，改代码只需重启 dsh web：
+
+```bash
+# 编辑 ~/.dsh/profiles/<name>/package.json：
+#   "@zhangyi/dsh-llm-ollama": "link:/root/projects/src/dsh-llm-ollama"
+cd ~/.dsh/profiles/<name> && pnpm install
+```
+
 ## 已知限制
 
 - 社区插件（非官方出品）。
-- 仅支持文本与工具调用；图片附件暂不支持（会给出明确错误）。
+- 图片需配合支持视觉的多模态模型（如 `llava`、`llama3.2-vision`、`qwen2.5vl` 等）使用；纯文本模型收到图片会由 Ollama 报错。
 - API 密钥字段当前仅保存凭据引用，尚未随请求发送；远程部署的鉴权请在 Ollama 前的反向代理层处理。

@@ -1,8 +1,9 @@
 // Mock Ollama server for offline testing of the dsh-llm-ollama plugin.
 // Implements GET /api/tags and POST /api/chat (NDJSON streaming, including a
-// tool-call reply when the request carries tools). Records the last /api/chat
-// request body to /tmp/ollama-mock-last.json so the num_ctx / num_predict /
-// keep_alive wiring can be asserted.
+// tool-call reply when the request carries tools, and an `images=N` echo when
+// messages carry base64 image data). Records the last /api/chat request body to
+// /tmp/ollama-mock-last.json so the num_ctx / num_predict / keep_alive / images
+// wiring can be asserted.
 //
 // Usage: node scripts/mock-ollama.mjs   (listens on 127.0.0.1:11434)
 import { createServer } from 'node:http'
@@ -49,7 +50,12 @@ const server = createServer((req, res) => {
         return
       }
       if (body.stream !== false) {
-        const text = `Hello from mock ollama (model ${body.model}). ` + (body.options && body.options.num_ctx ? `num_ctx=${body.options.num_ctx} ` : '') + (body.options && body.options.num_predict ? `num_predict=${body.options.num_predict}` : '')
+        const parts = [`Hello from mock ollama (model ${body.model}).`]
+        if (body.options && body.options.num_ctx) parts.push(`num_ctx=${body.options.num_ctx}`)
+        if (body.options && body.options.num_predict) parts.push(`num_predict=${body.options.num_predict}`)
+        const imageCount = (body.messages ?? []).reduce((n, m) => n + (Array.isArray(m.images) ? m.images.length : 0), 0)
+        if (imageCount > 0) parts.push(`images=${imageCount}`)
+        const text = parts.join(' ')
         const words = text.split(' ')
         let i = 0
         const timer = setInterval(() => {

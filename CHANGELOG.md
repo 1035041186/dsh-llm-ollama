@@ -4,6 +4,27 @@
 
 ---
 
+## [v0.1.6] - 2026-08-18 16:48:42
+
+**更新作者**: ZhangYi
+**更新类型**: 需求新增
+
+### 更新内容
+- 新增图片附件支持：用户消息中的图片块（`ImageBlock`）经 `ctx.attachments.readImage` 解析为字节后，以 base64 编码放入消息的 `images` 数组发送给 Ollama `/api/chat`（JSON 协议下 `images` 字段仅接受 base64 字符串）
+  - 工具结果（tool-result）中嵌套的图片同样提取到对应 `tool` 消息的 `images` 字段
+  - `listModels` / `resolveModel` 的能力声明由 `['text']` 更新为 `['text', 'image']`，客户端可正常上传图片
+  - 附件服务缺失或读取失败时给出明确错误（`UNSUPPORTED_CONTENT` / `ATTACHMENT_READ_FAILED`）
+  - 图片需配合支持视觉的多模态模型（如 `llava`、`llama3.2-vision`、`qwen2.5vl` 等）使用，纯文本模型收到图片会由 Ollama 报错
+- 移除原先「图片附件不支持」的拦截逻辑
+
+### 影响文件
+- `lib/index.js` — `buildMessages` 改为异步并新增 `contentToTextAndImages` 辅助函数；`stream()` 组装请求时 `await` 消息转换；模型能力声明加入 `image`
+- `scripts/mock-ollama.mjs` — 流式回复新增 `images=N` 回显，便于断言图片透传
+- `README.md` — 功能特性补充图片附件支持，已知限制改为多模态模型说明；开发调试补充 `link:` 软链实时跟随源码的说明
+- `package.json` — 版本递增至 0.1.6
+
+---
+
 ## [v0.1.5] - 2026-08-18 15:03:36
 
 **更新作者**: ZhangYi
