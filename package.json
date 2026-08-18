@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-llm-ollama",
+  "name": "@zhangyi/dsh-llm-ollama",
   "version": "0.1.2",
   "private": true,
   "description": "Ollama native protocol (/api/chat) provider for DeepSeek Harness: llm-ollama settings namespace, serving LlmAdapter, /api/tags model discovery, and a whole-page Ollama settings section.",

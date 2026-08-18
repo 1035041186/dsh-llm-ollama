@@ -38,7 +38,7 @@ dsh plugin --profile web add git+https://github.com/<user>/<repo>.git
 ```yaml
 - insert:
     - id: llm-ollama
-      name: '@deepseek-ai/dsh-llm-ollama'
+      name: '@zhangyi/dsh-llm-ollama'
 ```
 
 重启 dsh：

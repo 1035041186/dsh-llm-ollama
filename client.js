@@ -1,4 +1,4 @@
-// Client half of @deepseek-ai/dsh-llm-ollama: a whole-page "Ollama" settings
+// Client half of @zhangyi/dsh-llm-ollama: a whole-page "Ollama" settings
 // section (the `settings.section` list slot), so the plugin needs no
 // modification of dsh's own packages. The page manages the `llm-ollama`
 // settings namespace (provider profiles) through the wire API, fetches models
@@ -6,7 +6,7 @@
 // edits per-model Context window / Max output tokens (which the host adapter
 // sends as num_ctx / num_predict).
 window.__ModuleLoader__.load({
-	id: "@deepseek-ai/dsh-llm-ollama",
+	id: "@zhangyi/dsh-llm-ollama",
 	factory: (require) => {
 		var module = { exports: {} };
 		var exports = module.exports;
@@ -239,10 +239,10 @@ window.__ModuleLoader__.load({
 .dslollama_candidateLabel{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--dsw-alias-label-primary)}
 .dslollama_candidateId{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 `;
-		const tagId = "@deepseek-ai/dsh-llm-ollama/ollama.css";
+		const tagId = "@zhangyi/dsh-llm-ollama/ollama.css";
 		if (typeof document !== "undefined" && document.querySelector(`style[data-plugin-css="${tagId}"]`) === null) {
 			const tag = document.createElement("style");
-			tag.dataset.plugin = "@deepseek-ai/dsh-llm-ollama";
+			tag.dataset.plugin = "@zhangyi/dsh-llm-ollama";
 			tag.dataset.pluginCss = tagId;
 			tag.textContent = css;
 			document.head.appendChild(tag);
