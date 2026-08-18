@@ -4,6 +4,23 @@
 
 ---
 
+## [v0.1.7] - 2026-08-18 18:59:09
+
+**更新作者**: ZhangYi
+**更新类型**: 需求新增
+
+### 更新内容
+- 会话级上下文覆盖与右下角上下文指示同步：通过 `ctx.sessions` 把「实际生效的 contextWindow」（覆盖值 → 模型配置 → 默认 32K）折叠进会话日志的 `request/context` 事件（token-meter 的 `contextPressure` 投影按 last-wins 读取该事件），`/ollama-context` 调整后右下角 meter 立即跟随，发请求时再次校正以覆盖 agent-loop 写入的模型级值
+  - 仅处理路由到本插件提供方（`llm-ollama` 命名空间）的会话，其他提供方的会话一律跳过，不会被本插件的默认值/覆盖值改写显示
+  - 仅在生效值有变化且会话已有 provider/model 路由时追加，避免日志累积重复
+
+### 影响文件
+- `lib/index.js` — 新增 `publishContextWindow`（设置变更 watcher + `stream()` 两处触发，把生效 contextWindow 写入会话 `request/context`）
+- `README.md` — 会话级上下文覆盖特性说明补充右下角上下文指示同步
+- `package.json` — 版本递增至 0.1.7
+
+---
+
 ## [v0.1.6] - 2026-08-18 16:48:42
 
 **更新作者**: ZhangYi
