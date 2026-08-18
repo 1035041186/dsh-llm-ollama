@@ -1,0 +1,15 @@
+# dsh-llm-ollama bundle patch — applied automatically as a profile bundle layer.
+#
+# `dsh plugin --profile <name> add <this-package>` installs the dependency and,
+# because package.json declares `dsh.bundle.patch`, appends this package to the
+# profile's `dsh.profile.bundles`. On boot each bundle's patch file is applied
+# in order over the profile root, so this single insert is what mounts the
+# plugin — no manual edit of the profile's `cordis.patch.yml` is needed.
+#
+# The row name resolves against the profile's own node_modules, where the
+# install placed this package; the host entry is `main` (lib/index.js) and the
+# web client half is loaded via the package's `dsh.client` metadata.
+
+- insert:
+    - id: llm-ollama
+      name: '@zhangyi/dsh-llm-ollama'

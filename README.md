@@ -27,19 +27,15 @@ Ollama native protocol (/api/chat) provider plugin for DeepSeek Harness (dsh).
 
 ## 安装 / Install
 
-通过 git 仓库安装到 web profile（等价于 `pnpm add git+<url>`）：
+**一步完成**——通过 git 仓库安装到 web profile（等价于 `pnpm add git+<url>` + 自动挂载）：
 
 ```bash
 dsh plugin --profile web add git+https://github.com/<user>/<repo>.git
 ```
 
-然后把插件行加入用户补丁层 `~/.dsh/profiles/web/cordis.patch.yml`：
+插件自带 `dsh.bundle.patch`（`cordis.patch.yml`）：安装成功后 dsh 会自动把本包追加到 profile 的 `dsh.profile.bundles`，启动时作为 bundle 层把 `llm-ollama` 插件行挂进组合树——**无需再手动编辑 `~/.dsh/profiles/web/cordis.patch.yml`**。可运行 `dsh --profile web --dump-config` 确认 `llm-ollama` 行已存在。
 
-```yaml
-- insert:
-    - id: llm-ollama
-      name: '@zhangyi/dsh-llm-ollama'
-```
+> **从旧版（≤0.1.2）升级**：如果此前按旧 README 手动在 `~/.dsh/profiles/web/cordis.patch.yml` 里加过 `llm-ollama` 行，请**先删除那一行**再重启。现在该行由 bundle 层提供，两层同时存在会触发 `duplicate loader entry id: llm-ollama` 启动错误。删除后如 `dsh.profile.bundles` 尚未包含本包，重跑一次上面的 `add` 命令即可（或 `dsh plugin --profile web install`）。
 
 重启 dsh：
 
@@ -76,6 +72,7 @@ llm-ollama:
 
 ## 架构 / Architecture
 
+- **Bundle**（`cordis.patch.yml` + `package.json` 的 `dsh.bundle.patch`）：安装后自动成为 profile 的一个 bundle 层，把 `llm-ollama` 插件行挂进组合树，免去手动补丁。
 - **Host**（`lib/index.js`）：注册 `llm-ollama` 设置命名空间（其 schema 即「API 协议」下拉的数据来源）、实现 `LlmAdapter`（`/api/chat` 流式）、`/api/tags` 模型发现、`registerConfigurableProviders` 目录（含始终存在的休眠 `ollama` 条目，使命名空间对 Web 客户端保持暴露）。
 - **Client**（`client.js`）：`settings.section` 整页「Ollama」设置页（提供方卡片 / 模型目录 / 获取弹窗），写入 `llm-ollama` 命名空间。
 

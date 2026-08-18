@@ -1,6 +1,6 @@
 {
   "name": "@zhangyi/dsh-llm-ollama",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "Ollama native protocol (/api/chat) provider for DeepSeek Harness: llm-ollama settings namespace, serving LlmAdapter, /api/tags model discovery, and a whole-page Ollama settings section.",
   "keywords": [
@@ -23,6 +23,9 @@
     "./package.json": "./package.json"
   },
   "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
     "client": {
       "inject": [
         "@deepseek-ai/dsh-client-runtime",
@@ -36,6 +39,7 @@
   "files": [
     "lib",
     "client.js",
+    "cordis.patch.yml",
     "README.md",
     "LICENSE"
   ],
