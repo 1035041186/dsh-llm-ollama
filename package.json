@@ -1,0 +1,42 @@
+{
+  "name": "@deepseek-ai/dsh-llm-ollama",
+  "version": "0.1.2",
+  "private": true,
+  "description": "Ollama native protocol (/api/chat) provider for DeepSeek Harness: llm-ollama settings namespace, serving LlmAdapter, /api/tags model discovery, and a whole-page Ollama settings section.",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "ollama",
+    "llm",
+    "plugin"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-api-remotes"
+      ],
+      "platform": "web"
+    }
+  },
+  "files": [
+    "lib",
+    "client.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "dependencies": {}
+}
