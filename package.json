@@ -6,9 +6,13 @@
   "keywords": [
     "deepseek-harness",
     "dsh",
+    "dsh-plugin",
     "ollama",
     "llm",
-    "plugin"
+    "local-llm",
+    "self-hosted",
+    "plugin",
+    "deepseek"
   ],
   "license": "MIT",
   "type": "module",
