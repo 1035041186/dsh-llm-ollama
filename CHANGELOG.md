@@ -4,6 +4,19 @@
 
 ---
 
+## [v0.1.4] - 2026-08-18 14:44:08
+
+**更新作者**: ZhangYi
+**更新类型**: 需求调整
+
+### 更新内容
+- 调整模型列表行布局间距：移除 `.dslollama_modelRow` 下边距，改由 `.dslollama_modelAdvanced` 上边距承担，修正高级选项行与上一行的间距
+
+### 影响文件
+- `client.js` — 调整 `.dslollama_modelRow` / `.dslollama_modelAdvanced` 样式间距
+
+---
+
 ## [v0.1.3] - 2026-08-18 13:58:02
 
 **更新作者**: ZhangYi

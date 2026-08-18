@@ -221,8 +221,8 @@ window.__ModuleLoader__.load({
 .dslollama_models{border-top:1px solid var(--dsw-alias-border-l3);padding-top:10px;margin-top:4px}
 .dslollama_modelsHead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .dslollama_modelsTitle{font-size:13px;font-weight:600;color:var(--dsw-alias-label-primary)}
-.dslollama_modelRow{display:grid;grid-template-columns:1fr 1fr 28px 28px;gap:6px;margin-bottom:6px;align-items:center}
-.dslollama_modelAdvanced{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 0 2px}
+.dslollama_modelRow{display:grid;grid-template-columns:1fr 1fr 28px 28px;gap:6px;align-items:center}
+.dslollama_modelAdvanced{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 0 2px;margin-top:6px}
 .dslollama_iconButton{border:0;background:transparent;color:var(--dsw-alias-label-secondary);width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;padding:0}
 .dslollama_iconButton:not(:disabled):hover{background:var(--dsw-alias-interactive-bg-hover)}
 .dslollama_iconButtonDanger:not(:disabled):hover{background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary)}
