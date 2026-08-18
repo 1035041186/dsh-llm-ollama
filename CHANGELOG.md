@@ -4,6 +4,26 @@
 
 ---
 
+## [v0.1.5] - 2026-08-18 15:03:36
+
+**更新作者**: ZhangYi
+**更新类型**: 需求新增
+
+### 更新内容
+- 新增 `/ollama-context` 命令：在输入框输入 `/ollama-context` 即可调出当前会话的上下文窗口（Context window）设置面板
+  - 面板提供常用预设（4K / 8K / 16K / 32K / 64K / 128K）、**自定义值**输入（支持 `4096`、`32K`、`1M` 等写法）以及**跟随系统配置**选项
+  - 会话级覆盖的优先级高于设置页中每个模型配置的 Context window：设置了覆盖后，当前会话请求 Ollama 时以该值作为 `options.num_ctx`
+  - 新会话或选择「跟随系统配置」时恢复为系统配置（模型自身的 Context window 或默认 32K）
+  - 覆盖值持久化在 `llm-ollama` 设置命名空间的 `sessions.<sessionId>.contextWindow` 字段中，仅对有覆盖的会话生成记录
+
+### 影响文件
+- `lib/index.js` — 设置命名空间 schema/校验新增 `sessions` 字典；适配器 `stream()` 发送 `num_ctx` 时优先取当前会话的覆盖值
+- `client.js` — 新增 `/ollama-context` 命令贡献（popupSelect 面板：预设 / 跟随系统配置 / 自定义值）与自定义值输入弹窗（挂载到 `shell.overlay`），写入会话级覆盖
+- `README.md` — 功能与使用说明补充 `/ollama-context` 命令；新增「接入 Ollama：本地或远程部署」章节与已知限制更新
+- `package.json` — 版本递增至 0.1.5
+
+---
+
 ## [v0.1.4] - 2026-08-18 14:44:08
 
 **更新作者**: ZhangYi

@@ -21,6 +21,8 @@ window.__ModuleLoader__.load({
 		// K and M count as 1024-based here so "32K" parses to the exact 32K
 		// (32768) default the host adapter sends as num_ctx.
 		const CAPACITY_SCALE = { k: 1024, m: 1024 * 1024 };
+		// Common context-window presets offered by the /ollama-context command panel.
+		const PRESET_CONTEXTS = [4096, 8192, 16384, 32768, 65536, 131072];
 
 		/** Parse a capacity field ("32K", "4096", "1M"); blank -> undefined, unreadable -> NaN. */
 		function parseCapacity(text) {
@@ -142,7 +144,15 @@ window.__ModuleLoader__.load({
 			configured: "Configured",
 			custom: "Custom",
 			conflict: "These settings changed while the card was open. Reload and retry.",
-			expandCapacities: "Capacities"
+			expandCapacities: "Capacities",
+			commandDesc: "Set this session's context window (Ollama num_ctx)",
+			followSystem: "Follow system configuration",
+			customValue: "Custom value…",
+			customHint: "Enter any context window size, e.g. 4096, 32K, or 1M.",
+			contextTitle: "Session context window",
+			contextDescription: "This value overrides the provider's per-model Context window for this session only. New sessions and the \"follow system\" option use the configured value.",
+			customInvalid: "Enter a valid context size, e.g. 4096, 32K, or 1M.",
+			contextSaved: "Session context updated."
 		};
 		const zh = {
 			nav: "Ollama",
@@ -195,7 +205,15 @@ window.__ModuleLoader__.load({
 			configured: "已配置",
 			custom: "自定义",
 			conflict: "这张卡片打开期间，设置已被其他地方改动。请刷新后重试。",
-			expandCapacities: "容量"
+			expandCapacities: "容量",
+			commandDesc: "设置当前会话的上下文窗口（Ollama num_ctx）",
+			followSystem: "跟随系统配置",
+			customValue: "自定义值…",
+			customHint: "输入任意上下文窗口大小，例如 4096、32K 或 1M。",
+			contextTitle: "会话上下文窗口",
+			contextDescription: "该值仅对当前会话生效，优先级高于提供方中每个模型配置的上下文窗口；新会话或选择“跟随系统配置”时使用系统配置。",
+			customInvalid: "请输入有效的上下文大小，例如 4096、32K 或 1M。",
+			contextSaved: "会话上下文已更新。"
 		};
 
 		/** Scoped styles for this page (injected once, mirroring the product's css tag pattern). */
@@ -234,6 +252,7 @@ window.__ModuleLoader__.load({
 .dslollama_btnDanger{color:var(--dsw-alias-state-error-primary);border-color:var(--dsw-alias-border-l2)}
 .dslollama_btnDanger:not(:disabled):hover{background:var(--dsw-alias-interactive-bg-hover-danger)}
 .dslollama_fetchDialog{width:min(560px,100%)}
+.dslollama_contextDialog{width:min(420px,100%)}
 .dslollama_candidateList{list-style:none;margin:0;padding:0}
 .dslollama_candidate{margin:0 0 6px}
 .dslollama_candidateLabel{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--dsw-alias-label-primary)}
@@ -638,17 +657,227 @@ window.__ModuleLoader__.load({
 			);
 		}
 
-		const inject = ["slots", "locale", "connection", "remote"];
+		/**
+		* Tiny module-level store for the /ollama-context custom-value modal. The popup
+		* shell (popupSelect) closes as soon as its option is picked, so the
+		* "custom value" flow hands off here: the modal renders into
+		* `shell.overlay` and subscribes to this store. Snapshot identity is
+		* stable between open/close so it is safe as a useSyncExternalStore
+		* source.
+		*/
+		const modalStore = (() => {
+			let state = { open: false, sessionId: void 0 };
+			const listeners = new Set();
+			return {
+				subscribe(listener) {
+					listeners.add(listener);
+					return () => listeners.delete(listener);
+				},
+				getSnapshot() {
+					return state;
+				},
+				open(sessionId) {
+					state = { open: true, sessionId };
+					for (const listener of [...listeners]) listener();
+				},
+				close() {
+					state = { open: false, sessionId: void 0 };
+					for (const listener of [...listeners]) listener();
+				}
+			};
+		})();
+
+		/**
+		* Custom-value modal for the /ollama-context command: a free-text capacity
+		* input (4K / 32K / 1M / raw token counts) plus quick preset chips.
+		* Saving writes the session-scoped override into the `llm-ollama`
+		* namespace (`sessions.<sessionId>.contextWindow`), which the host
+		* adapter then sends as `options.num_ctx` for this session's requests.
+		*/
+		function ContextSizeModal(props) {
+			const { api, t } = props;
+			const state = react.useSyncExternalStore(modalStore.subscribe, modalStore.getSnapshot);
+			const [draft, setDraft] = react.useState("");
+			const [busy, setBusy] = react.useState(false);
+			const [error, setError] = react.useState(void 0);
+			const [saved, setSaved] = react.useState(false);
+
+			react.useEffect(() => {
+				if (!state.open) return;
+				setDraft("");
+				setBusy(false);
+				setError(void 0);
+				setSaved(false);
+				let cancelled = false;
+				api.settings.describe({}).then((response) => {
+					if (cancelled) return;
+					if (!response.result.ok) return;
+					const ns = response.result.value.namespaces.find((candidate) => candidate.ns === NS);
+					const current = ns?.value?.sessions?.[state.sessionId]?.contextWindow;
+					if (typeof current === "number" && !Number.isNaN(current)) setDraft(formatCapacity(current));
+				}).catch(() => {});
+				return () => {
+					cancelled = true;
+				};
+			}, [state.open, state.sessionId]);
+
+			const parsed = parseCapacity(draft);
+			const parsedValid = parsed !== void 0 && !Number.isNaN(parsed) && Number.isInteger(parsed) && parsed > 0;
+
+			const applyCustom = async () => {
+				if (!parsedValid) {
+					setError(t("customInvalid"));
+					return;
+				}
+				setBusy(true);
+				setError(void 0);
+				setSaved(false);
+				try {
+					const response = await api.settings.mutate({
+						ns: NS,
+						ops: [{ op: "set", path: ["sessions", state.sessionId], value: { contextWindow: parsed } }]
+					});
+					if (!response.result.ok) {
+						setError(response.result.error.code === "settings-conflict" ? t("conflict") : response.result.error.message);
+						return;
+					}
+					setSaved(true);
+					setTimeout(() => modalStore.close(), 450);
+				} catch (error) {
+					setError(messageOf(error));
+				} finally {
+					setBusy(false);
+				}
+			};
+
+			return react.createElement(_deepseek_ai_dsh_client_ui_primitives.Modal, {
+				open: state.open,
+				onClose: () => modalStore.close(),
+				title: t("contextTitle"),
+				closeLabel: t("close"),
+				description: t("contextDescription"),
+				className: "dslollama_contextDialog",
+				footer: react.createElement("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end", alignItems: "center" } },
+					saved ? react.createElement("span", { className: "dslollama_hint", role: "status" }, t("contextSaved")) : null,
+					react.createElement(_deepseek_ai_dsh_client_ui_primitives.Button, { variant: "outline", disabled: busy, onClick: () => modalStore.close() }, t("cancel")),
+					react.createElement(_deepseek_ai_dsh_client_ui_primitives.Button, { variant: "primary", disabled: busy || !parsedValid, onClick: () => { applyCustom(); } }, busy ? t("saving") : t("save")))
+			},
+				react.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 } },
+					PRESET_CONTEXTS.map((size) => react.createElement("button", {
+						key: size,
+						type: "button",
+						className: "dslollama_btn",
+						disabled: busy,
+						onClick: () => { setDraft(formatCapacity(size)); setError(void 0); }
+					}, formatCapacity(size)))),
+				react.createElement("div", { className: "dslollama_field" },
+					react.createElement("span", { className: "dslollama_label" }, t("contextWindow")),
+					react.createElement("input", {
+						className: "dslollama_input",
+						type: "text",
+						inputMode: "numeric",
+						value: draft,
+						placeholder: "32K",
+						autoFocus: true,
+						disabled: busy,
+						onChange: (e) => setDraft(e.target.value),
+						onKeyDown: (e) => {
+							if (e.key === "Enter") {
+								e.preventDefault();
+								applyCustom();
+							}
+						}
+					}),
+					parsedValid && draft.trim().length > 0
+						? react.createElement("p", { className: "dslollama_hint" }, `${formatCapacity(parsed)} = ${String(parsed)} tokens`)
+						: react.createElement("p", { className: "dslollama_hint" }, t("customHint")),
+					error !== void 0 ? react.createElement("p", { className: "dslollama_error" }, error) : null
+				)
+			);
+		}
+
+		const inject = ["slots", "locale", "connection", "remote", "commandUi"];
 
 		function apply(ctx) {
 			ctx.effect(() => ctx.locale.register(NS, { zh, en }), "dsh-llm-ollama: copy dictionaries");
 			const t = ctx.locale.bind(NS);
+			const api = ctx.get("connection").api;
+			const commandUi = ctx.get("commandUi");
 			const refreshListeners = new Set();
 			const subscribe = (listener) => {
 				refreshListeners.add(listener);
 				return () => refreshListeners.delete(listener);
 			};
-			const injected = () => ({ api: ctx.get("connection").api, t, subscribe });
+			const injected = () => ({ api, t, subscribe });
+
+			// /ollama-context: session-scoped context-window override. A popupSelect
+			// panel offers "follow system", the common presets, and a custom
+			// value; picking a preset or follow writes the override (or removes
+			// it) straight into the `llm-ollama` namespace, while "custom"
+			// hands off to the ContextSizeModal above. Registered inside an
+			// effect so the locale dictionary (registered above) is in place
+			// when the description is resolved, and so the registration is
+			// disposed with this plugin's fiber.
+			ctx.effect(() => {
+				commandUi.register({
+					name: "ollama-context",
+					description: t("commandDesc"),
+					available: () => true,
+					ui: {
+						kind: "popupSelect",
+						options: async (session) => {
+							let current;
+							try {
+								const response = await api.settings.describe({});
+								if (response.result.ok) {
+									const ns = response.result.value.namespaces.find((candidate) => candidate.ns === NS);
+									current = ns?.value?.sessions?.[session.sessionId]?.contextWindow;
+								}
+							} catch {
+								// no override read → all rows render unselected
+							}
+							const rows = [
+								{ id: "follow", label: t("followSystem"), active: current === void 0 }
+							];
+							for (const size of PRESET_CONTEXTS) {
+								rows.push({
+									id: `ctx-${String(size)}`,
+									label: formatCapacity(size),
+									detail: `${String(size)} tokens`,
+									active: current === size
+								});
+							}
+							rows.push({ id: "custom", label: t("customValue"), detail: t("customHint") });
+							return rows;
+						},
+						onSelect: async (option, session) => {
+							if (option.id === "custom") {
+								modalStore.open(session.sessionId);
+								return;
+							}
+							const sessionId = session.sessionId;
+							if (option.id === "follow") {
+								await api.settings.mutate({
+									ns: NS,
+									ops: [{ op: "unset", path: ["sessions", sessionId] }]
+								});
+								return;
+							}
+							const size = Number(option.id.slice(4));
+							await api.settings.mutate({
+								ns: NS,
+								ops: [{ op: "set", path: ["sessions", sessionId], value: { contextWindow: size } }]
+							});
+						}
+					}
+				});
+			}, "dsh-llm-ollama: /ollama-context command");
+			ctx.slots.inject("shell.overlay", () => ctx.slots.register({
+				name: "shell.overlay",
+				id: "ollama-context-modal",
+				order: 1,
+				inject: () => ({ api, t })
+			}, ContextSizeModal));
 			ctx.slots.inject("settings.section", () => ctx.slots.register({
 				name: "settings.section",
 				id: "ollama",
