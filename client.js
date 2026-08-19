@@ -885,6 +885,32 @@ window.__ModuleLoader__.load({
 				label: () => t("nav"),
 				inject: injected
 			}, OllamaSection));
+			// The settings shell currently chooses section icons internally and falls
+			// back to the gear for plugin-owned sections. Reuse the Models icon for
+			// Ollama until the shell exposes an icon slot/configuration field.
+			ctx.effect(() => {
+				if (typeof document === "undefined" || typeof MutationObserver === "undefined") return;
+				const copyModelsIcon = () => {
+					const buttons = [...document.querySelectorAll("button")];
+					const ollamaButton = buttons.find((button) => button.textContent?.trim() === t("nav"));
+					const modelsButton = buttons.find((button) => {
+						const label = button.textContent?.trim();
+						return label === "Models" || label === "模型";
+					});
+					const sourceIcon = modelsButton?.querySelector("svg");
+					if (ollamaButton === void 0 || sourceIcon === null) return;
+					const currentIcon = ollamaButton.querySelector("svg");
+					if (currentIcon === null) {
+						ollamaButton.prepend(sourceIcon.cloneNode(true));
+					} else if (currentIcon.outerHTML !== sourceIcon.outerHTML) {
+						currentIcon.replaceWith(sourceIcon.cloneNode(true));
+					}
+				};
+				copyModelsIcon();
+				const observer = new MutationObserver(copyModelsIcon);
+				observer.observe(document.body, { childList: true, subtree: true });
+				return () => observer.disconnect();
+			}, "dsh-llm-ollama: reuse Models settings icon");
 			ctx.effect(() => {
 				const notify = () => {
 					for (const listener of [...refreshListeners]) {
