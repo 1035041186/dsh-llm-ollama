@@ -4,6 +4,23 @@
 
 ---
 
+## [v0.1.9] - 2026-08-22 21:55:00
+
+**更新作者**: ZhangYi
+**更新类型**: Bug 修复
+
+### 更新内容
+- 兼容 DeepSeek Harness 更新到 `dsh-llm@0.1.1-rc.2` 后的适配器契约：该版本起每个 `LlmAdapter` 都必须暴露 `prepareCall(provider, model, signal)`，用于把「模型元数据解析」与「实际流式分发」绑定到同一代适配器注册，避免准备与分发之间配置变化把一代能力拼到另一代端点上
+  - 此前插件以纯对象字面量注册适配器，未继承抽象基类 `LlmAdapter` 提供的默认 `prepareCall`，任何路由到本插件的请求都会在 harness 内部抛出 `registration.adapter.prepareCall is not a function`，导致整轮对话失败
+  - 现在在适配器对象上显式声明 `async prepareCall`：先 `await this.resolveModel(...)` 解析出该模型的完整元数据（provider/id/name/inputModalities/context/defaultMaxTokens），再返回 `{ model, stream }`，其中 `stream` 复用本适配器既有的 `stream`（保留会话级上下文覆盖、图片附件、工具调用、流式错误还原等全部既有行为）
+  - 返回的 `model` 与旧代码路径 `resolveModel` 产出的形状一致，经 harness 的 `normalizeModelInfo` 校验无额外校验负担
+
+### 影响文件
+- `lib/index.js` — 适配器对象新增 `async prepareCall` 方法（`resolveModel` 之后、`stream` 之前）
+- `package.json` — 版本递增至 0.1.9
+
+---
+
 ## [v0.1.8] - 2026-08-18 22:30:00
 
 **更新作者**: ZhangYi

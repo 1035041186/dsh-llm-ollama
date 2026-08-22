@@ -34,7 +34,7 @@ DeepSeek Harness（dsh）的 Ollama 提供方插件：通过 Ollama 原生 `/api
 
 ## 环境要求
 
-- DeepSeek Harness web profile（已测试版本 `0.1.0-rc.6`）
+- DeepSeek Harness web profile（已测试版本 `0.1.0-rc.6`；`v0.1.9` 起兼容 `0.1.1-rc.2` 及以上——该版本要求适配器实现 `prepareCall`）
 - [Ollama](https://ollama.com) 服务（本地默认 `http://localhost:11434`，远程填对应地址）
 - `curl`（Linux/macOS 自带；Windows 10+ 自带）
 
