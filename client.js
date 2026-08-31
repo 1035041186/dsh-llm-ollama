@@ -101,6 +101,28 @@ window.__ModuleLoader__.load({
 				strokeLinejoin: "round"
 			}));
 		}
+		/** Disclosure chevron for native selects: RIGHT when the dropdown is
+		 * closed, rotating 90° to point DOWN while it is open (matches the
+		 * disclosure glyph the plugin already uses for the model row). */
+		function SelectChevron() {
+			return react.createElement("svg", { width: "14", height: "14", viewBox: "0 0 16 16", fill: "none", "aria-hidden": true }, react.createElement("path", { d: "M6 3.5L10.5 8L6 12.5", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }));
+		}
+		/**
+		 * A labeled native select with a system-style expanding chevron. The open
+		 * state is tracked in React (not focus): clicking toggles it, and it
+		 * resets after an option is chosen or on blur, so each click flips the
+		 * icon (closed = right, open = down).
+		 */
+		function FieldSelect({ label, spanFull, disabled, value, onChange, children }) {
+			const [open, setOpen] = react.useState(false);
+			const handleChange = (event) => { setOpen(false); onChange(event); };
+			return react.createElement("div", { className: "dslollama_field" + (spanFull ? " dslollama_spanFull" : "") },
+				react.createElement("span", { className: "dslollama_label" }, label),
+				react.createElement("div", { className: "dslollama_selectWrap" },
+					react.createElement("select", { className: "dslollama_input", value, disabled, onChange: handleChange, onClick: () => setOpen((current) => !current), onBlur: () => setOpen(false) }, children),
+					react.createElement("span", { className: "dslollama_selectChevron" + (open ? " dslollama_selectChevronOpen" : ""), "aria-hidden": true },
+						react.createElement(SelectChevron, null))));
+		}
 
 		/** Copy dictionaries for the Ollama settings section. */
 		const en = {
@@ -142,21 +164,21 @@ window.__ModuleLoader__.load({
 			modelName: "Display name",
 			contextWindow: "Context window",
 			maxTokens: "Max output tokens",
-			thinkingCapable: "Thinking control",
+			thinkingCapable: "Reasoning control",
 			thinkingCapableAuto: "Auto (from server)",
-			thinkingCapableForce: "Show (thinking-capable)",
-			thinkingCapableHide: "Hide (non-thinking)",
-			thinkingCapableHint: "By default thinking support is auto-detected from the model's capabilities, so only thinking models show a reasoning-level selector in the bottom-right picker. Use the override only when the server reports it incorrectly.",
+			thinkingCapableForce: "Show (reasoning-capable)",
+			thinkingCapableHide: "Hide (non-reasoning)",
+			thinkingCapableHint: "By default reasoning support is auto-detected from the model's capabilities, so only reasoning models show a reasoning-level selector in the bottom-right picker. Use the override only when the server reports it incorrectly.",
 			reasoningEffort: "Default reasoning level",
 			reasoningEffortDefault: "Not set (follow Ollama)",
-			reasoningEffortHint: "This model's default reasoning effort in the bottom-right model selector. Off disables thinking; on enables it; low/medium/high/max tune it (levels mode only). Leave unset to follow Ollama's own default.",
+			reasoningEffortHint: "This model's default reasoning effort in the bottom-right model selector. Off disables reasoning; on enables it; low/medium/high/max tune it (levels mode only). Leave unset to follow Ollama's own default.",
 			effortOff: "Off",
 			effortOn: "On",
 			effortLow: "Low",
 			effortMedium: "Medium",
 			effortHigh: "High",
 			effortMax: "Max",
-			thinkingMode: "Thinking levels",
+			thinkingMode: "Reasoning levels",
 			thinkingModeBoolean: "On/off switch (most models)",
 			thinkingModeLevels: "Granular levels (low/medium/high/max)",
 			thinkingModeHint: "Most open reasoning models (Qwen3, DeepSeek-R1) only support an on/off switch. Choose granular levels only for models that accept them (e.g. GPT-OSS).",
@@ -221,24 +243,24 @@ window.__ModuleLoader__.load({
 			modelName: "显示名称",
 			contextWindow: "上下文窗口",
 			maxTokens: "最大输出 token",
-			thinkingCapable: "思考控制",
+			thinkingCapable: "推理控制",
 			thinkingCapableAuto: "自动识别（推荐）",
-			thinkingCapableForce: "始终显示（思考型）",
-			thinkingCapableHide: "始终隐藏（非思考型）",
-			thinkingCapableHint: "默认按服务器的模型能力自动识别：只有思考型模型才会在右下角模型选择器显示「推理等级」。仅当自动判断不准时，才手动覆盖为始终显示或始终隐藏。",
+			thinkingCapableForce: "始终显示（推理型）",
+			thinkingCapableHide: "始终隐藏（非推理型）",
+			thinkingCapableHint: "默认按服务器的模型能力自动识别：只有推理型模型才会在右下角模型选择器显示「推理等级」。仅当自动判断不准时，才手动覆盖为始终显示或始终隐藏。",
 			reasoningEffort: "默认推理等级",
 			reasoningEffortDefault: "不设置（跟随 Ollama）",
-			reasoningEffortHint: "该模型在右下角模型选择器中的默认推理等级。Off 关闭思考、On 开启思考；low/medium/high/max 调节强度（仅多档等级模式）。不设置时跟随 Ollama 默认。",
+			reasoningEffortHint: "该模型在右下角模型选择器中的默认推理等级。Off 关闭推理、On 开启推理；low/medium/high/max 调节强度（仅多档等级模式）。不设置时跟随 Ollama 默认。",
 			effortOff: "关闭",
 			effortOn: "开启",
 			effortLow: "低",
 			effortMedium: "中",
 			effortHigh: "高",
 			effortMax: "最大",
-			thinkingMode: "思考等级类型",
+			thinkingMode: "推理等级类型",
 			thinkingModeBoolean: "开关（多数模型）",
 			thinkingModeLevels: "多档等级（low/medium/high/max）",
-			thinkingModeHint: "大多数开源思考模型（Qwen3、DeepSeek-R1 等）只支持开关；仅 GPT-OSS 等模型支持多档等级，才选用该项。",
+			thinkingModeHint: "大多数开源推理模型（Qwen3、DeepSeek-R1 等）只支持开关；仅 GPT-OSS 等模型支持多档等级，才选用该项。",
 			ollamaNumCtxHint: "Ollama 会将每个模型的上下文窗口作为 num_ctx 请求参数、最大输出 token 作为 num_predict 发送——这里填多少，API 就传多少。",
 			modelInvalid: "每个模型需要唯一的 ID；容量需为正数，例如 4096、32K 或 1M。",
 			save: "保存",
@@ -291,6 +313,11 @@ select.dslollama_input:disabled{cursor:default;opacity:1}
 .dslollama_modelAdvanced{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;padding:0 0 2px;margin-top:6px}
 .dslollama_modelAdvanced .dslollama_field{margin-bottom:0}
 .dslollama_spanFull{grid-column:1 / -1}
+.dslollama_selectWrap{position:relative;display:block}
+.dslollama_selectWrap select.dslollama_input{appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:28px;cursor:pointer}
+.dslollama_selectWrap select.dslollama_input:disabled{cursor:default}
+.dslollama_selectWrap .dslollama_selectChevron{position:absolute;right:8px;top:50%;transform:translateY(-50%) rotate(0deg);color:var(--dsw-alias-label-caption);pointer-events:none;display:inline-flex;transition:transform .12s}
+.dslollama_selectWrap .dslollama_selectChevronOpen{transform:translateY(-50%) rotate(90deg)}
 .dslollama_iconButton{border:0;background:transparent;color:var(--dsw-alias-label-secondary);width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;padding:0}
 .dslollama_iconButton:not(:disabled):hover{background:var(--dsw-alias-interactive-bg-hover)}
 .dslollama_iconButtonDanger:not(:disabled):hover{background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary)}
@@ -432,25 +459,25 @@ select.dslollama_input:disabled{cursor:default;opacity:1}
 						react.createElement("div", { className: "dslollama_field" },
 							react.createElement("span", { className: "dslollama_label" }, t("maxTokens")),
 							react.createElement("input", { className: "dslollama_input", type: "text", inputMode: "numeric", value: capacityText(model, "maxTokens"), placeholder: "32K", disabled, onChange: (e) => editCapacity(index, "maxTokens", e.target.value) })),
-						react.createElement("div", { className: "dslollama_field dslollama_spanFull" },
-							react.createElement("span", { className: "dslollama_label" }, t("thinkingCapable")),
-							react.createElement("select", { className: "dslollama_input", value: model.thinkingCapable === true ? "true" : model.thinkingCapable === false ? "false" : "", disabled, onChange: (e) => { const next = e.target.value; patch(index, { thinkingCapable: next === "true" ? true : next === "false" ? false : void 0 }); } },
+						react.createElement("p", { className: "dslollama_hint dslollama_spanFull" }, t("ollamaNumCtxHint")),
+						react.createElement(FieldSelect, { label: t("thinkingCapable"), spanFull: true, disabled, value: model.thinkingCapable === true ? "true" : model.thinkingCapable === false ? "false" : "", onChange: (e) => { const next = e.target.value; patch(index, { thinkingCapable: next === "true" ? true : next === "false" ? false : void 0 }); },
+							children: [
 								react.createElement("option", { value: "" }, t("thinkingCapableAuto")),
 								react.createElement("option", { value: "true" }, t("thinkingCapableForce")),
-								react.createElement("option", { value: "false" }, t("thinkingCapableHide")))),
+								react.createElement("option", { value: "false" }, t("thinkingCapableHide"))
+							] }),
 						model.thinkingCapable !== false ? react.createElement(react.Fragment, null,
-							react.createElement("div", { className: "dslollama_field" },
-								react.createElement("span", { className: "dslollama_label" }, t("thinkingMode")),
-								react.createElement("select", { className: "dslollama_input", value: model.thinkingMode === "levels" ? "levels" : "boolean", disabled, onChange: (e) => { const mode = e.target.value; const ids = EFFORT_IDS_BY_MODE[mode]; const current = model.reasoningEffort; patch(index, { thinkingMode: mode, ...(current !== void 0 && !ids.includes(current) ? { reasoningEffort: void 0 } : {}) }); } },
+							react.createElement(FieldSelect, { label: t("thinkingMode"), disabled, value: model.thinkingMode === "levels" ? "levels" : "boolean", onChange: (e) => { const mode = e.target.value; const ids = EFFORT_IDS_BY_MODE[mode]; const current = model.reasoningEffort; patch(index, { thinkingMode: mode, ...(current !== void 0 && !ids.includes(current) ? { reasoningEffort: void 0 } : {}) }); },
+								children: [
 									react.createElement("option", { value: "boolean" }, t("thinkingModeBoolean")),
-									react.createElement("option", { value: "levels" }, t("thinkingModeLevels")))),
-							react.createElement("div", { className: "dslollama_field" },
-								react.createElement("span", { className: "dslollama_label" }, t("reasoningEffort")),
-								react.createElement("select", { className: "dslollama_input", value: stringOf(model.reasoningEffort), disabled, onChange: (e) => { const next = e.target.value; patch(index, { reasoningEffort: next.length === 0 ? void 0 : next }); } },
+									react.createElement("option", { value: "levels" }, t("thinkingModeLevels"))
+								] }),
+							react.createElement(FieldSelect, { label: t("reasoningEffort"), disabled, value: stringOf(model.reasoningEffort), onChange: (e) => { const next = e.target.value; patch(index, { reasoningEffort: next.length === 0 ? void 0 : next }); },
+								children: [
 									react.createElement("option", { value: "" }, t("reasoningEffortDefault")),
-									(model.thinkingMode === "levels" ? [["off", t("effortOff")], ["low", t("effortLow")], ["medium", t("effortMedium")], ["high", t("effortHigh")], ["max", t("effortMax")]] : [["off", t("effortOff")], ["on", t("effortOn")]]).map(([level, label]) => react.createElement("option", { key: level, value: level }, label)))),
+									(model.thinkingMode === "levels" ? [["off", t("effortOff")], ["low", t("effortLow")], ["medium", t("effortMedium")], ["high", t("effortHigh")], ["max", t("effortMax")]] : [["off", t("effortOff")], ["on", t("effortOn")]]).map(([level, label]) => react.createElement("option", { key: level, value: level }, label))
+								] }),
 							react.createElement("p", { className: "dslollama_hint dslollama_spanFull" }, t("reasoningEffortHint"))) : null,
-						react.createElement("p", { className: "dslollama_hint dslollama_spanFull" }, t("ollamaNumCtxHint")),
 						react.createElement("p", { className: "dslollama_hint dslollama_spanFull" }, t("thinkingCapableHint"))
 					) : null
 				)),
