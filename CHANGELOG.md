@@ -4,6 +4,27 @@
 
 ---
 
+## [v0.1.10] - 2026-08-31 13:36:58
+
+**更新作者**: ZhangYi
+**更新类型**: 功能新增
+
+### 更新内容
+- 新增**推理等级（reasoning effort）**支持：**仅对勾选了「支持思考（推理型模型）」(`thinkingCapable: true`) 的模型**，Ollama 适配器才向 harness 公布推理等级元数据，右下角模型选择器才为该模型显示「推理等级」(Effort) 菜单；纯文本模型不显示该菜单
+  - 默认菜单为**开关**两项：`off` → `think: false`（关闭）、`on` → `think: true`（开启）。这与大多数开源思考模型（Qwen3、DeepSeek-R1 / v3.1）只支持布尔 `think` 一致（对齐 [Ollama Thinking 文档](https://docs.ollama.com/capabilities/thinking)）
+  - 仅当模型支持多档等级（如 GPT-OSS）时，把模型级「思考等级类型」(`thinkingMode`) 设为 `levels`，菜单才扩展为 `off` / `low` / `medium` / `high` / `max`
+  - 未选择等级时不发送 `think`，跟随 Ollama 默认（支持思考的模型默认开启）
+- 新增模型级**支持思考**开关、**思考等级类型**与**默认推理等级**配置：在设置页展开模型勾选/设置，勾选后保存作为该模型在右下角选择器中的默认 `defaultEffort`；不设置时菜单显示“Default”
+- 根因：适配器此前未在 `resolveModel()` 返回 `reasoning` 元数据，会话目录只公布提供方分组与模型，不显示推理等级行
+
+### 影响文件
+- `lib/index.js` — 新增 boolean/levels 两档思考等级常量；`resolveModel()` 仅在 `thinkingCapable` 时按 `thinkingMode` 返回 `reasoning`（含 `defaultEffort`）；`stream()` 将 `options.reasoningEffort` 映射为 `body.think`（off/on/等级）；设置 envelope 与 `resolveConfig` 校验模型级 `reasoningEffort` / `thinkingCapable` / `thinkingMode`
+- `client.js` — 设置页展开行新增「支持思考」勾选框、「思考等级类型」下拉与按模式变化的「默认推理等级」下拉、校验、保存逻辑与中英文文案；重构展开行布局：把「支持思考」勾选改为整行（跨两列）的开关行，思考等级类型/默认推理等级两个下拉并排一行，避免此前勾选框被压缩在单列、下拉孤悬造成参差（新增 `dslollama_spanFull` / `dslollama_checkRow` 样式与 `select.dslollama_input` 指针）
+- `README.md` — 功能特性、使用步骤与 settings.yaml 示例
+- `package.json` — 版本递增至 0.1.10
+
+---
+
 ## [v0.1.9] - 2026-08-22 21:55:00
 
 **更新作者**: ZhangYi

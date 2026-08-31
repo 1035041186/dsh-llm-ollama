@@ -23,6 +23,16 @@ window.__ModuleLoader__.load({
 		const CAPACITY_SCALE = { k: 1024, m: 1024 * 1024 };
 		// Common context-window presets offered by the /ollama-context command panel.
 		const PRESET_CONTEXTS = [4096, 8192, 16384, 32768, 65536, 131072];
+		// Reasoning-effort levels the host adapter accepts (mapped to Ollama's
+		// top-level `think` field). Per Ollama's docs most open thinking models
+		// only support a boolean on/off, so the default mode is `boolean`
+		// (off/on); models that accept granular levels (e.g. GPT-OSS) opt into
+		// `levels` (off/low/medium/high/max).
+		const THINK_MODES = ["boolean", "levels"];
+		const EFFORT_IDS_BY_MODE = {
+			boolean: ["off", "on"],
+			levels: ["off", "low", "medium", "high", "max"]
+		};
 
 		/** Parse a capacity field ("32K", "4096", "1M"); blank -> undefined, unreadable -> NaN. */
 		function parseCapacity(text) {
@@ -132,6 +142,21 @@ window.__ModuleLoader__.load({
 			modelName: "Display name",
 			contextWindow: "Context window",
 			maxTokens: "Max output tokens",
+			thinkingCapable: "Thinking-capable model",
+			thinkingCapableHint: "Mark thinking-capable models (e.g. qwen3, deepseek-r1, gpt-oss) to expose a reasoning-level selector for this model in the bottom-right model picker. Text-only models stay unmarked.",
+			reasoningEffort: "Default reasoning level",
+			reasoningEffortDefault: "Not set (follow Ollama)",
+			reasoningEffortHint: "This model's default reasoning effort in the bottom-right model selector. Off disables thinking; low/medium/high/max tune it. Leave unset to follow Ollama's own default.",
+			effortOff: "Off",
+			effortOn: "On",
+			effortLow: "Low",
+			effortMedium: "Medium",
+			effortHigh: "High",
+			effortMax: "Max",
+			thinkingMode: "Thinking levels",
+			thinkingModeBoolean: "On/off switch (most models)",
+			thinkingModeLevels: "Granular levels (low/medium/high/max)",
+			thinkingModeHint: "Most open reasoning models (Qwen3, DeepSeek-R1) only support an on/off switch. Choose granular levels only for models that accept them (e.g. GPT-OSS).",
 			ollamaNumCtxHint: "Ollama sends each model's Context window as the num_ctx request option and Max output tokens as num_predict — whatever you enter here is passed to the API exactly.",
 			modelInvalid: "Each model needs a unique ID; capacities must be positive counts like 4096, 32K, or 1M.",
 			save: "Save",
@@ -193,6 +218,21 @@ window.__ModuleLoader__.load({
 			modelName: "显示名称",
 			contextWindow: "上下文窗口",
 			maxTokens: "最大输出 token",
+			thinkingCapable: "支持思考（推理型模型）",
+			thinkingCapableHint: "勾选思考型模型（如 qwen3、deepseek-r1、gpt-oss），右下角模型选择器才会为该模型显示推理等级。纯文本模型保持不勾选。",
+			reasoningEffort: "默认推理等级",
+			reasoningEffortDefault: "不设置（跟随 Ollama）",
+			reasoningEffortHint: "该模型在右下角模型选择器中的默认推理等级。Off 关闭思考；low/medium/high/max 调节思考强度。不设置时跟随 Ollama 默认。",
+			effortOff: "关闭",
+			effortOn: "开启",
+			effortLow: "低",
+			effortMedium: "中",
+			effortHigh: "高",
+			effortMax: "最大",
+			thinkingMode: "思考等级类型",
+			thinkingModeBoolean: "开关（多数模型）",
+			thinkingModeLevels: "多档等级（low/medium/high/max）",
+			thinkingModeHint: "大多数开源思考模型（Qwen3、DeepSeek-R1 等）只支持开关；仅 GPT-OSS 等模型支持多档等级，才选用该项。",
 			ollamaNumCtxHint: "Ollama 会将每个模型的上下文窗口作为 num_ctx 请求参数、最大输出 token 作为 num_predict 发送——这里填多少，API 就传多少。",
 			modelInvalid: "每个模型需要唯一的 ID；容量需为正数，例如 4096、32K 或 1M。",
 			save: "保存",
@@ -235,12 +275,20 @@ window.__ModuleLoader__.load({
 .dslollama_label{font-size:12px;color:var(--dsw-alias-label-secondary)}
 .dslollama_input{border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);padding:6px 8px;font-size:13px;width:100%;min-width:0;box-sizing:border-box}
 .dslollama_input:focus{outline:none;border-color:var(--dsw-alias-brand-primary)}
+select.dslollama_input{cursor:pointer}
+select.dslollama_input:disabled{cursor:default;opacity:1}
 .dslollama_hint{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;margin:2px 0 8px}
 .dslollama_models{border-top:1px solid var(--dsw-alias-border-l3);padding-top:10px;margin-top:4px}
 .dslollama_modelsHead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .dslollama_modelsTitle{font-size:13px;font-weight:600;color:var(--dsw-alias-label-primary)}
 .dslollama_modelRow{display:grid;grid-template-columns:1fr 1fr 28px 28px;gap:6px;align-items:center}
-.dslollama_modelAdvanced{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 0 2px;margin-top:6px}
+.dslollama_modelAdvanced{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;padding:0 0 2px;margin-top:6px}
+.dslollama_modelAdvanced .dslollama_field{margin-bottom:0}
+.dslollama_spanFull{grid-column:1 / -1}
+.dslollama_checkRow{display:flex;align-items:center;gap:8px}
+.dslollama_checkRow input[type="checkbox"]{accent-color:var(--dsw-alias-brand-primary);width:15px;height:15px;cursor:pointer;flex:none}
+.dslollama_checkBox{font-size:13px;color:var(--dsw-alias-label-primary)}
+.dslollama_checkRow.dslollama_disabled{opacity:.6}
 .dslollama_iconButton{border:0;background:transparent;color:var(--dsw-alias-label-secondary);width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;padding:0}
 .dslollama_iconButton:not(:disabled):hover{background:var(--dsw-alias-interactive-bg-hover)}
 .dslollama_iconButtonDanger:not(:disabled):hover{background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary)}
@@ -382,7 +430,23 @@ window.__ModuleLoader__.load({
 						react.createElement("div", { className: "dslollama_field" },
 							react.createElement("span", { className: "dslollama_label" }, t("maxTokens")),
 							react.createElement("input", { className: "dslollama_input", type: "text", inputMode: "numeric", value: capacityText(model, "maxTokens"), placeholder: "32K", disabled, onChange: (e) => editCapacity(index, "maxTokens", e.target.value) })),
-						react.createElement("p", { className: "dslollama_hint", style: { gridColumn: "1 / -1" } }, t("ollamaNumCtxHint"))
+						react.createElement("div", { className: "dslollama_spanFull dslollama_checkRow" + (disabled ? " dslollama_disabled" : "") },
+							react.createElement("input", { type: "checkbox", checked: model.thinkingCapable === true, disabled, onChange: (e) => patch(index, { thinkingCapable: e.target.checked ? true : void 0 }) }),
+							react.createElement("span", { className: "dslollama_checkBox" }, t("thinkingCapable"))),
+						model.thinkingCapable === true ? react.createElement(react.Fragment, null,
+							react.createElement("div", { className: "dslollama_field" },
+								react.createElement("span", { className: "dslollama_label" }, t("thinkingMode")),
+								react.createElement("select", { className: "dslollama_input", value: model.thinkingMode === "levels" ? "levels" : "boolean", disabled, onChange: (e) => { const mode = e.target.value; const ids = EFFORT_IDS_BY_MODE[mode]; const current = model.reasoningEffort; patch(index, { thinkingMode: mode, ...(current !== void 0 && !ids.includes(current) ? { reasoningEffort: void 0 } : {}) }); } },
+									react.createElement("option", { value: "boolean" }, t("thinkingModeBoolean")),
+									react.createElement("option", { value: "levels" }, t("thinkingModeLevels")))),
+							react.createElement("div", { className: "dslollama_field" },
+								react.createElement("span", { className: "dslollama_label" }, t("reasoningEffort")),
+								react.createElement("select", { className: "dslollama_input", value: stringOf(model.reasoningEffort), disabled, onChange: (e) => { const next = e.target.value; patch(index, { reasoningEffort: next.length === 0 ? void 0 : next }); } },
+									react.createElement("option", { value: "" }, t("reasoningEffortDefault")),
+									(model.thinkingMode === "levels" ? [["off", t("effortOff")], ["low", t("effortLow")], ["medium", t("effortMedium")], ["high", t("effortHigh")], ["max", t("effortMax")]] : [["off", t("effortOff")], ["on", t("effortOn")]]).map(([level, label]) => react.createElement("option", { key: level, value: level }, label)))),
+							react.createElement("p", { className: "dslollama_hint dslollama_spanFull" }, t("reasoningEffortHint"))) : null,
+						react.createElement("p", { className: "dslollama_hint dslollama_spanFull" }, t("ollamaNumCtxHint")),
+						model.thinkingCapable !== true ? react.createElement("p", { className: "dslollama_hint dslollama_spanFull" }, t("thinkingCapableHint")) : null
 					) : null
 				)),
 				react.createElement("button", { className: "dslollama_btn", disabled, onClick: () => onChange([...models, { id: "" }]) }, t("addModel")),
@@ -442,6 +506,10 @@ window.__ModuleLoader__.load({
 						const value = model[field];
 						if (value !== void 0 && (typeof value !== "number" || !Number.isInteger(value) || value <= 0)) return t("modelInvalid");
 					}
+					if (model.thinkingCapable !== void 0 && typeof model.thinkingCapable !== "boolean") return t("modelInvalid");
+					if (model.thinkingMode !== void 0 && !THINK_MODES.includes(model.thinkingMode)) return t("modelInvalid");
+					const mode = model.thinkingMode === "levels" ? "levels" : "boolean";
+					if (model.reasoningEffort !== void 0 && !EFFORT_IDS_BY_MODE[mode].includes(model.reasoningEffort)) return t("modelInvalid");
 				}
 				return void 0;
 			})();
@@ -464,6 +532,9 @@ window.__ModuleLoader__.load({
 							if (stringOf(model.name).trim().length > 0) next.name = model.name.trim();
 							if (model.contextWindow !== void 0) next.contextWindow = model.contextWindow;
 							if (model.maxTokens !== void 0) next.maxTokens = model.maxTokens;
+							if (model.reasoningEffort !== void 0) next.reasoningEffort = model.reasoningEffort;
+							if (model.thinkingCapable === true) next.thinkingCapable = true;
+							if (model.thinkingMode === "levels") next.thinkingMode = "levels";
 							return next;
 						}),
 						...(keepAlive.trim().length > 0 ? { keepAlive: keepAlive.trim() } : {}),

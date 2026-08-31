@@ -9,6 +9,7 @@ DeepSeek Harness（dsh）的 Ollama 提供方插件：通过 Ollama 原生 `/api
 - **模型发现**：真实请求 `GET /api/tags` 拉取服务器上的模型，弹窗勾选加入模型目录；也可手动添加。
 - **参数直通 Ollama**：
   - 模型级：**上下文窗口** → `options.num_ctx`，**最大输出 token** → `options.num_predict`（填多少传多少；未填上下文窗口时默认发送 32K / 32768）。
+  - 模型级：**支持思考（推理型模型）** → 勾选 `thinkingCapable` 的模型才会在右下角模型选择器显示「推理等级」菜单（纯文本模型不显示）。菜单默认只有**开关**两项（`off` → `think: false`、`on` → `think: true`）——这与大多数开源思考模型（Qwen3、DeepSeek-R1 / v3.1）只支持布尔 `think` 一致；仅当模型支持多档等级（如 GPT-OSS）时，把「思考等级类型」切到 `levels`，菜单才会多出 `low` / `medium` / `high` / `max`。可选**默认推理等级**作为该模型的默认值；不设置时菜单显示“Default”，请求不发送 `think`，跟随 Ollama 默认（支持思考的模型默认开启）。
   - 提供方级：**保持时间** → `keep_alive`（如 `5m`，`-1` 表示常驻），**温度** → `options.temperature`（范围 0–2），可选 API 密钥。
 - **会话级上下文覆盖**：输入 `/ollama-context` 调出当前会话的上下文设置面板（预设 4K/8K/16K/32K/64K/128K、自定义值、跟随系统配置），覆盖值优先于模型配置作为 `num_ctx`；只作用于当前会话，新会话自动回到系统配置。右下角的上下文占用指示会同步反映覆盖值（仅对本插件管理的 Ollama 提供方会话生效，其他提供方的会话不受影响）。
 
@@ -55,8 +56,8 @@ dsh web                           # 重启生效
 1. 刷新页面 → 设置 → **Ollama**。
 2. 配置提供方：API 地址填 `http://localhost:11434`（或你的服务器地址），可选保持时间 / 温度 / 密钥。
 3. 点击「获取可用模型」从服务器拉取模型，弹窗勾选加入；也可手动添加。
-4. 展开某个模型，填**上下文窗口**（如 `32K`）与**最大输出 token**——它们会原样作为 `num_ctx` / `num_predict` 发送。
-5. 保存后该提供方即出现在会话的模型选择器中；也可在 `settings.yaml` 的 `agent-default-model` 中设为默认模型。
+4. 展开某个模型，填**上下文窗口**（如 `32K`）与**最大输出 token**（原样作为 `num_ctx` / `num_predict` 发送）。若是思考型模型（如 qwen3、deepseek-r1），勾选**支持思考（推理型模型）**后，右下角「推理等级」菜单默认为**开关**（On/Off）两项；仅当模型支持多档等级（如 gpt-oss）时，把「思考等级类型」切到 `levels`，并可选**默认推理等级**作为默认（映射为 Ollama 的 `think`）。
+5. 保存后该提供方即出现在会话的模型选择器中；右下角选择模型后，仅对勾选了「支持思考」的模型显示「推理等级」菜单，可进一步调整（页面的默认值优先作为默认，未设置时为“Default”）。也可在 `settings.yaml` 的 `agent-default-model` 中设为默认模型。
 
 ### 按会话调整上下文
 
@@ -80,10 +81,16 @@ llm-ollama:
       keepAlive: 5m
       temperature: 0.7
       models:
-        - id: llama3.2:3b
+        - id: qwen3.5:9b          # boolean on/off switch (default thinkingMode)
+          thinkingCapable: true
+          reasoningEffort: on
           contextWindow: 32768
           maxTokens: 4096
-        - id: qwen2.5:7b
+        - id: gpt-oss:20b        # granular levels
+          thinkingCapable: true
+          thinkingMode: levels
+          reasoningEffort: high
+        - id: llama3.2:3b         # text-only: no thinking menu
 ```
 
 ## 架构
