@@ -4,6 +4,81 @@
 
 ---
 
+## [v0.1.14] - 2026-08-31 16:46:00
+
+**更新作者**: ZhangYi
+**更新类型**: BUG 修复
+
+### 更新内容
+- 修复 **自动识别后模型选择器打不开（右下角“选择模型”出不来）** 的问题：
+  - 根因：适配器的 `resolveModel` 被 harness 在构建模型目录时逐个 `await`，而自动识别在其内部**同步等待 `GET /api/tags`**；当服务器响应慢/卡住时（实测 `/api/tags` 偶发超过 5s 甚至更久），`resolveModel` 一直挂起/异常，导致整个提供方被目录构建丢弃——右下角就没了模型
+  - 修复：能力探针改为**完全非阻塞**——`resolveModel` 只读已缓存的快照、**绝不等网络**（也绝不让 `resolveModel` 抛错）；能力探测在后台执行（带 `--max-time 5` 上限、失败静默、结果按 baseURL 缓存并去重），并在插件加载/设置变化时预热
+  - 效果：目录始终秒开（0ms 返回），模型选择器恢复正常；服务器 `/api/tags` 响应快时自动识别正常；响应慢/离线时模型按“非思考”安全处理（不发送 `think`），可用模型级 `thinkingCapable: true/false` 手动覆盖兜底
+- 实测：冷缓存下 `resolveModel` 0ms 返回不阻塞；预热后思考型模型（capabilities 含 `thinking`）正确暴露 reasoning，非思考型不暴露
+
+### 影响文件
+- `lib/index.js` — 能力探测改为非阻塞后台探针（`readCapabilities` 同步读缓存 + 触发后台 fetch）；`resolveModel` 不再等待网络；`refreshProfiles` 预热缓存
+- `package.json` — 版本递增至 0.1.14
+
+---
+
+## [v0.1.13] - 2026-08-31 14:09:34
+
+**更新作者**: ZhangYi
+**更新类型**: 功能新增
+
+### 更新内容
+- **自动识别思考型模型**：适配器读取 Ollama `/api/tags` 返回的每个模型 `capabilities`（含 `thinking`），据此判断模型是否思考型——只有思考型模型才在右下角模型选择器显示「推理等级」菜单（“只对思考型模型显示”），不再需要手工勾选
+  - `capabilities` 按 baseURL 缓存（5 分钟 TTL）并做并发去重，避免每次解析都请求服务器、目录并行加载时重复打 `/api/tags`
+  - 支持手动覆盖：模型级 `thinkingCapable` 为 `true`（始终显示）/ `false`（始终隐藏）；不设置则自动识别。设置页「思考控制」由勾选框改为「自动识别 / 始终显示 / 始终隐藏」三选下拉
+  - 被判定为非思考的模型不公布 `reasoning` 元数据，因此不显示推理菜单、也不会向它发送 `think`，避免向不支持思考的模型发送 `think: true` 造成的异常
+- 实测（真实 Ollama）：`qwen3.5:4b` / `qwen3.5:9b` 自动判定为思考型（`thinking` 能力），`freehuntx/qwen3-coder:14b` / `smtek/Qwen3.8-27B:IQ2_M-12gb` 判定为非思考型；手动 `true`/`false` 覆盖均生效
+
+### 影响文件
+- `lib/index.js` — 新增 `capabilities` 自动识别（缓存 + 并发去重）；`resolveModel()` 默认按能力判断，`thinkingCapable: true/false` 手动覆盖
+- `client.js` — 「思考控制」三选下拉（自动/始终显示/始终隐藏）与提示文案（中英文）；保存逻辑支持持久化 `false`
+- `README.md` — 功能特性、使用步骤与 settings.yaml 注释
+- `package.json` — 版本递增至 0.1.13
+
+---
+
+## [v0.1.12] - 2026-08-31 13:58:51
+
+**更新作者**: ZhangYi
+**更新类型**: BUG 修复
+
+### 更新内容
+- 修复 **Ollama 思考型模型不再显示思考过程（“不思考”）** 的问题：
+  - 根因：Ollama 原生 `/api/chat` 在开启思考时，把推理轨迹放在 `message.thinking`（此时 `message.content` 为空），末段答案放在 `message.content`；而适配器的流式解析只读取 `message.content`，完全忽略 `message.thinking`，导致思考轨迹被丢弃——模型其实在思考，但界面看不到
+  - 修复：解析器新增对 `message.thinking` 的处理，作为 `reasoning` 内容块（`block-start: reasoning` / `reasoning-delta` / `block-end: {"type":"reasoning",...}`）输出，交由 harness 渲染思考过程
+  - 实测：对真实 Ollama（`qwen3.5:4b`）`think:true` 请求，适配器 `stream()` 产出数百帧 `reasoning-delta` 与 `reasoning` 块；对 `think:false` 则无思考（该字段正确关闭）；不勾选（不发送 `think`）时按 Ollama 默认开启思考并显示轨迹
+- `scripts/mock-ollama.mjs` 同步在 `think` 开启时模拟输出 `message.thinking`（`think:false` 时不输出），便于离线回归思考显示路径
+
+### 影响文件
+- `lib/index.js` — 流式解析新增 `message.thinking` → `reasoning` 内容块
+- `scripts/mock-ollama.mjs` — 按 `body.think` 输出/抑制 `message.thinking`
+- `package.json` — 版本递增至 0.1.12
+
+---
+
+## [v0.1.11] - 2026-08-31 13:45:47
+
+**更新作者**: ZhangYi
+**更新类型**: 需求调整
+
+### 更新内容
+- 澄清「推理型模型」勾选框语义：勾选才在右下角显示「推理等级」控制；**不勾选则遵循 Ollama 默认——支持思考的模型默认仍开启思考，只是此处无法关闭**
+  - 设置页将该勾选框标记由「支持思考（推理型模型）」改为「推理型模型」，并补充说明文案（中英文）
+  - 「默认推理等级」提示补充 on/off 与多档等级两种模式说明
+  - README 功能特性、使用步骤与 settings.yaml 注释同步说明该默认行为
+
+### 影响文件
+- `client.js` — 「推理型模型」勾选框名称与提示、默认推理等级提示的中英文文案调整
+- `README.md` — 功能特性、使用步骤与 settings.yaml 注释
+- `package.json` — 版本递增至 0.1.11
+
+---
+
 ## [v0.1.10] - 2026-08-31 13:36:58
 
 **更新作者**: ZhangYi

@@ -67,6 +67,12 @@ const server = createServer((req, res) => {
         return
       }
       if (body.stream !== false) {
+        // When thinking is enabled (body.think !== false and not explicitly
+        // denied), emit a reasoning trace in `message.thinking` before the
+        // final `message.content`, mirroring real Ollama's shape so the
+        // client's reasoning-surface path is exercised offline.
+        const thinkOn = body.think !== false
+        const thinkWords = thinkOn ? `Reasoning: the model thinks step by step. `.split(' ') : []
         const parts = [`Hello from mock ollama (model ${body.model}).`]
         if (body.options && body.options.num_ctx) parts.push(`num_ctx=${body.options.num_ctx}`)
         if (body.options && body.options.num_predict) parts.push(`num_predict=${body.options.num_predict}`)
@@ -75,9 +81,13 @@ const server = createServer((req, res) => {
         const text = parts.join(' ')
         const words = text.split(' ')
         let i = 0
+        const total = thinkWords.length + words.length
         const timer = setInterval(() => {
-          if (i < words.length) {
-            send({ model: body.model, created_at: new Date().toISOString(), message: { role: 'assistant', content: `${words[i]} ` }, done: false })
+          if (i < thinkWords.length) {
+            send({ model: body.model, created_at: new Date().toISOString(), message: { role: 'assistant', thinking: `${thinkWords[i]} `, content: '' }, done: false })
+            i++
+          } else if (i < total) {
+            send({ model: body.model, created_at: new Date().toISOString(), message: { role: 'assistant', content: `${words[i - thinkWords.length]} ` }, done: false })
             i++
           } else {
             clearInterval(timer)
@@ -88,7 +98,7 @@ const server = createServer((req, res) => {
               done: true,
               done_reason: 'stop',
               prompt_eval_count: 24,
-              eval_count: words.length,
+              eval_count: total,
               ...(body.keep_alive !== undefined ? { keep_alive_received: body.keep_alive } : {})
             })
             res.end()
