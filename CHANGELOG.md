@@ -4,6 +4,35 @@
 
 ---
 
+## [v0.1.17] - 2026-09-10 10:40:03
+
+**更新作者**: ZhangYi
+**更新类型**: BUG修复
+
+### 更新内容
+- 修复 **DSH 升级后设置页 Ollama 面板「打不开 / 打开是空白」** 的问题。根因有两处，均来自 harness 0.1.2-rc.1 的 Remote 迁移：
+  - **`ctx.connection.api` 已不存在**：Connection 句柄现在只携带 `generation` / `state` / `reconnect` / `rpc`，旧代码取到 `undefined` 后在 `useEffect` 里同步抛错。新增 `remoteApi()` 适配层，把本节全部调用改走类型化 Remote 面（`ctx.remote.<ns>.<method>()`），并把 RemoteResult（`{ok,value}` / `{ok,error}`）重新包成旧的 `{result: …}` 信封，所有调用点保持不变：
+    - `settings.describe({})` → `remote.settings.describe()`
+    - `settings.mutate({ns,ops,expectedRevision})` → `remote.settings.mutate(ns, ops, expectedRevision)`（改为位置传参）
+    - `credentials.set/unset({ref,…})` → `remote.credentials.set/unset(ref, …)`
+    - `llm.providers({})` → `remote.llm.listConfigurableProviders()`（值包回 `{providers}`）
+    - `llm.discoverModels({settingsNs,…})` → `remote.llm.discoverModels(settingsNs, request)`（值包回 `{models}`）
+  - **Remote 命名空间必须显式 inject**（真正的空白原因）：新版 cordis 把 `ctx.remote` 的每个命名空间当作独立注入属性，未声明即抛 `cannot get property "remote.settings" without inject`；而新版 slots 运行时会捕获条目抛错并**移除（abdicate）该条目**——界面不报错、控制台之外无迹可寻，只渲染一片空白。客户端 `inject` 因此补齐 `remote.settings` / `remote.llm` / `remote.credentials`（与官方 ui-settings-models 的写法一致）
+- 兼容 settings 冲突错误码改名：`settings-conflict` → `settings/conflict`（新增 `isSettingsConflict()` 同时接受两种）
+- `dsh.client.inject` 清理：移除已不存在的 `@deepseek-ai/dsh-client-runtime`，改为真实存在的 `@deepseek-ai/dsh-client-connection`、`@deepseek-ai/dsh-client-ui-commands`
+- 新增两个回归脚本，供下次 harness 升级时复现同类问题：
+  - `scripts/client-harness.mjs`：无依赖，直接按浏览器方式加载 client bundle，并用**复刻了 cordis inject 守卫**的假 Remote 面驱动设置页完整调用序列（13 项断言；漏声明 `remote.*` 会直接复现原始报错）
+  - `scripts/browser-check.mjs`：无头 Chromium 真开「设置 → Ollama」，断言条目未被 abdicate、面板有内容、控制台零报错；`--save` 可顺带验证设置写入落盘
+- 实测（隔离 `DSH_HOME` + 真实 Chromium）：修复前面板空白且控制台报 `cannot get property "remote.settings" without inject`；修复后面板完整渲染、控制台零报错，保存后 `settings.yaml` 正确写入 `llm-ollama.providers.ollama`
+
+### 影响文件
+- `client.js` — `inject` 补齐 `remote.*` 命名空间；新增 `remoteApi()` 适配层与 `isSettingsConflict()`；`apply()` 改为 `ctx.get("connection")?.api ?? remoteApi(ctx.remote)`（兼容迁移前的 harness）
+- `package.json` — `dsh.client.inject` 指向真实客户端包；版本递增至 0.1.17
+- `scripts/client-harness.mjs` — 新增：client bundle 回归 harness（含 cordis inject 守卫复刻）
+- `scripts/browser-check.mjs` — 新增：真实浏览器面板实测脚本
+
+---
+
 ## [v0.1.16] - 2026-08-31 17:15:55
 
 **更新作者**: ZhangYi

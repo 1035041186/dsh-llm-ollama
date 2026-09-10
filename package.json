@@ -1,6 +1,6 @@
 {
   "name": "@zhangyi/dsh-llm-ollama",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "private": true,
   "description": "Ollama native protocol (/api/chat) provider for DeepSeek Harness: llm-ollama settings namespace, serving LlmAdapter, /api/tags model discovery, and a whole-page Ollama settings section.",
   "keywords": [
@@ -28,7 +28,8 @@
     },
     "client": {
       "inject": [
-        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-ui-commands",
         "@deepseek-ai/dsh-client-ui-settings",
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-api-remotes"

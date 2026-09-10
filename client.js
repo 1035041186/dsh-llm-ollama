@@ -578,7 +578,7 @@ select.dslollama_input:disabled{cursor:default;opacity:1}
 						expectedRevision: revision
 					});
 					if (!response.result.ok) {
-						setFailure(response.result.error.code === "settings-conflict" ? t("conflict") : response.result.error.message);
+						setFailure(isSettingsConflict(response.result.error.code) ? t("conflict") : response.result.error.message);
 						return;
 					}
 					if (storesKey) {
@@ -613,7 +613,7 @@ select.dslollama_input:disabled{cursor:default;opacity:1}
 						expectedRevision: revision
 					});
 					if (!response.result.ok) {
-						setFailure(response.result.error.code === "settings-conflict" ? t("conflict") : response.result.error.message);
+						setFailure(isSettingsConflict(response.result.error.code) ? t("conflict") : response.result.error.message);
 						return;
 					}
 					onDone();
@@ -841,7 +841,7 @@ select.dslollama_input:disabled{cursor:default;opacity:1}
 						ops: [{ op: "set", path: ["sessions", state.sessionId], value: { contextWindow: parsed } }]
 					});
 					if (!response.result.ok) {
-						setError(response.result.error.code === "settings-conflict" ? t("conflict") : response.result.error.message);
+						setError(isSettingsConflict(response.result.error.code) ? t("conflict") : response.result.error.message);
 						return;
 					}
 					setSaved(true);
@@ -899,12 +899,70 @@ select.dslollama_input:disabled{cursor:default;opacity:1}
 			);
 		}
 
-		const inject = ["slots", "locale", "connection", "remote", "commandUi"];
+		// Every Remote namespace is its own injected property: cordis throws
+		// `cannot get property "remote.settings" without inject` on an undeclared
+		// one, and the slots runtime answers such a throw by abdicating the entry
+		// — the Ollama panel then opens blank instead of failing loudly.
+		const inject = [
+			"slots",
+			"locale",
+			"connection",
+			"remote",
+			"remote.credentials",
+			"remote.llm",
+			"remote.settings",
+			"commandUi"
+		];
+
+		/**
+		* Wire calls as the client used to reach them: one `{ result }` envelope
+		* per call, unary verbs taking a single request object.
+		*
+		* The harness moved every Host capability onto the typed Remote face and
+		* dropped `api` from the Connection handle (`ctx.connection` now carries
+		* only connection state and `reconnect`), so this section's calls have to
+		* be re-expressed over `ctx.remote`: each namespace is a method group
+		* (`settings.describe()`, `credentials.set(ref, value)`,
+		* `llm.listConfigurableProviders()`, `llm.discoverModels(ns, request)`)
+		* that answers a RemoteResult (`{ok:true,value}` / `{ok:false,error}`),
+		* and the settings namespace + edit list are positional arguments rather
+		* than fields of one request object. Adapting here keeps every call site
+		* below unchanged.
+		*/
+		function remoteApi(remote) {
+			const settle = async (call) => ({ result: await call });
+			const unwrap = (response, value) => response.ok ? { result: { ok: true, value: value(response.value) } } : { result: response };
+			return {
+				settings: {
+					describe: () => settle(remote.settings.describe()),
+					mutate: ({ ns, ops, expectedRevision }) => settle(remote.settings.mutate(ns, ops, expectedRevision))
+				},
+				credentials: {
+					set: ({ ref, value }) => settle(remote.credentials.set(ref, value)),
+					unset: ({ ref }) => settle(remote.credentials.unset(ref))
+				},
+				llm: {
+					// The configurable-provider directory: one entry per route an adapter
+					// can activate, each naming the settings namespace that configures it.
+					providers: async () => unwrap(await remote.llm.listConfigurableProviders(), (providers) => ({ providers })),
+					// The answer is the model list itself; the legacy envelope nested it
+					// under `models`.
+					discoverModels: async ({ settingsNs, ...request }) => unwrap(await remote.llm.discoverModels(settingsNs, request), (models) => ({ models }))
+				}
+			};
+		}
+
+		/** Whether a settings write lost the optimistic-concurrency check. */
+		function isSettingsConflict(code) {
+			return code === "settings/conflict" || code === "settings-conflict";
+		}
 
 		function apply(ctx) {
 			ctx.effect(() => ctx.locale.register(NS, { zh, en }), "dsh-llm-ollama: copy dictionaries");
 			const t = ctx.locale.bind(NS);
-			const api = ctx.get("connection").api;
+			// Harnesses before the Remote migration answered these calls on
+			// `connection.api`; current ones do not carry it at all.
+			const api = ctx.get("connection")?.api ?? remoteApi(ctx.remote);
 			const commandUi = ctx.get("commandUi");
 			const refreshListeners = new Set();
 			const subscribe = (listener) => {
